@@ -23,15 +23,18 @@ from six import BytesIO
 from static_sitemaps import conf
 from static_sitemaps.util import _lazy_load
 
-__author__ = 'xaralis'
+__author__ = 'BarnabasSzabolcs'
 
 
 class SitemapGenerator(object):
-    def __init__(self, verbosity):
+    def __init__(self, verbosity, root_dir=None, base_url=None, language=None):
         self.verbosity = verbosity
         self.has_changes = False
+        self.base_url = conf.get_url() if base_url is None else base_url
+        self.root_dir = conf.ROOT_DIR if root_dir is None else root_dir
+        self.language = conf.LANGUAGE if language is None else language
         try:
-            self.storage = _lazy_load(conf.STORAGE_CLASS)(location=conf.ROOT_DIR)
+            self.storage = _lazy_load(conf.STORAGE_CLASS)(location=self.root_dir)
         except TypeError:
             self.storage = _lazy_load(conf.STORAGE_CLASS)()
 
@@ -73,7 +76,7 @@ class SitemapGenerator(object):
 
     def write(self):
         self.out('Generating sitemaps.', 1)
-        translation.activate(conf.LANGUAGE)
+        translation.activate(self.language)
         self.write_index()
         translation.deactivate()
         self.out('Finished generating sitemaps.', 1)
@@ -81,7 +84,7 @@ class SitemapGenerator(object):
     def write_index(self):
         old_index_md5 = None
 
-        baseurl = self.normalize_url(conf.get_url())
+        baseurl = self.normalize_url(self.base_url)
         parts = []
 
         # Collect all pages and write them.
@@ -104,7 +107,7 @@ class SitemapGenerator(object):
                     'lastmod': lastmod
                 })
 
-        path = os.path.join(conf.ROOT_DIR, 'sitemap.xml')
+        path = os.path.join(self.root_dir, 'sitemap.xml')
         self.out('Writing index file.', 2)
 
         if self.storage.exists(path):
@@ -156,7 +159,7 @@ class SitemapGenerator(object):
 
         lastmods = [lastmod for lastmod in [u.get('lastmod') for u in urls] if lastmod is not None]
         file_lastmod = max(lastmods) if len(lastmods) > 0 else None
-        path = os.path.join(conf.ROOT_DIR, filename)
+        path = os.path.join(self.root_dir, filename)
         template = getattr(site, 'sitemap_template', 'sitemap.xml')
 
         if self.storage.exists(path):
